@@ -14,6 +14,11 @@ namespace AppCarbinetMidLayer
         static Dictionary<int, Func<string, List<TagInfo>>> ParserList = new Dictionary<int, Func<string, List<TagInfo>>>();
         static Dictionary<string, TagInfo> pool = new Dictionary<string, TagInfo>();
 
+        public static void ClearTagPool()
+        {
+            pool.Clear();
+        }
+
 
         public static void SetMinReadedCount(int _count)
         {
@@ -40,6 +45,8 @@ namespace AppCarbinetMidLayer
                 ParserList[_flag] = _parser;
             }
         }
+
+
         public static Func<string, List<TagInfo>> GetParser(int _flag)
         {
             if (ParserList.ContainsKey(_flag))
@@ -73,18 +80,20 @@ namespace AppCarbinetMidLayer
         {
             if (!pool.ContainsKey(_ti.epc))
             {
+
                 pool.Add(_ti.epc, _ti);
+                UpdateTagInfo(_ti, _ti);
 
             }
             else
             {
                 TagInfo ti = pool[_ti.epc];
-                IncreaseReadCount(ti);
+                UpdateTagInfo(ti, _ti);
             }
 #if TagPool_Debug
             Debug.WriteLine("AddTag ...");
             TagInfo temp = GetSpecifiedTag(_ti.epc);
-            Debug.WriteLine(string.Format("ReadCount => {0} EPC => {1}", temp.ReadCount.ToString(), temp.epc));
+            Debug.WriteLine(string.Format("ReadCount => {0} EPC => {1}", GetMaxReadCountTag(temp).ToString(), temp.epc));
 #endif
         }
 
@@ -96,6 +105,8 @@ namespace AppCarbinetMidLayer
             List<TagInfo> list = pool.Select((_kvp) => _kvp.Value).ToList<TagInfo>();
             LoopTagForExistsState(list);
         }
+
+
         static void LoopTagForExistsState(List<TagInfo> _list)
         {
             if (_list.Count <= 0) return;
@@ -116,7 +127,7 @@ namespace AppCarbinetMidLayer
 #if TagPool_Debug
             Debug.WriteLine("LoopTagForExistsState ...");
             TagInfo temp = GetSpecifiedTag(ti.epc);
-            Debug.WriteLine(string.Format("ReadCount => {0} EPC => {1}", temp.ReadCount.ToString(), temp.epc));
+            Debug.WriteLine(string.Format("ReadCount => {0} EPC => {1}", GetMaxReadCountTag(temp).ToString(), temp.epc));
 #endif
 
             LoopTagForExistsState(_list.GetRange(0, count - 1));
@@ -136,11 +147,23 @@ namespace AppCarbinetMidLayer
             })
             .Select((_kvp) => { return _kvp.Value; }).ToList<TagInfo>();
         }
+
+        public static List<TagInfo> GetAllEventChangedTags()
+        {
+            return pool.Where((_kvp) =>
+            {
+                return _kvp.Value.Event != TagEvent.TagEvent_Normal;
+            })
+            .Select((_kvp) => { return _kvp.Value; }).ToList<TagInfo>();
+        }
+
         public static List<TagInfo> GetSpecifiedExistsTags(int _port)
         {
             return pool.Where((_kvp) => { return GetTagExistsState(_kvp.Value) && _kvp.Value.port == _port; })
             .Select((_kvp) => { return _kvp.Value; }).ToList<TagInfo>();
         }
+
+
         public static TagInfo GetSpecifiedTag(string _epc)
         {
             if (!pool.ContainsKey(_epc))
@@ -153,43 +176,131 @@ namespace AppCarbinetMidLayer
                 return pool[_epc];
             }
         }
+
+
         #region Helper Func
         static bool CheckExistsRequirement(TagInfo _ti)
         {
-            Debug.WriteLine(string.Format("read_count => {0}   MIN => {1}  epc => {2}", _ti.ReadCount.ToString(), MIN_READED_COUNT.ToString(), _ti.epc));
-            return _ti.ReadCount >= MIN_READED_COUNT;
+            int maxCount = 0;
+            maxCount = GetMaxReadCountTag(_ti);
+            Debug.WriteLine(string.Format("read_count => {0}   MIN => {1}  epc => {2}", maxCount.ToString(), MIN_READED_COUNT.ToString(), _ti.epc));
+            return maxCount >= MIN_READED_COUNT;
         }
+
+
         static void SetTagExistsState(TagInfo _ti, bool _bState)
         {
-            _ti.bThisTagExists = _bState;
-#if TagPool_Debug
-            if (_bState)
+            if (_ti.bThisTagExists == false && _bState == true)
             {
+                _ti.Event = TagEvent.TagEvent_TagNew;
+#if TagPool_Debug
                 Debug.WriteLine("New Readed => " + _ti.epc + "                +++++");
+#endif
+                goto END;
+            }
+            if (_ti.bThisTagExists == false && _bState == false)
+            {
+                _ti.Event = TagEvent.TagEvent_Normal;
+#if TagPool_Debug
+                Debug.WriteLine("New unReaded => " + _ti.epc + "              -----");
+#endif
+                goto END;
+            }
+
+            if (_ti.bThisTagExists == true && _bState == false)
+            {
+                _ti.Event = TagEvent.TagEvent_TagDeleted;
+                goto END;
+            }
+            if (_ti.bThisTagExists == true && _bState == true)
+            {
+                _ti.Event = TagEvent.TagEvent_Normal;
+                int crtCount = GetCurrentTagReadCount(_ti);
+                int maxCount = GetMaxReadCountTag(_ti);
+                if (maxCount > crtCount)
+                {
+                    _ti.antennaID = GetMaxReadCountAnt(_ti);
+                    _ti.Event = TagEvent.TagEvent_SwitchAnt;
+                }
+                goto END;
+            }
+        END:
+            _ti.bThisTagExists = _bState;
+
+        }
+
+
+        public static string GetMaxReadCountAnt(TagInfo _ti)
+        {
+            List<TagReadRecord> list = new List<TagReadRecord>(_ti.antReadCountList);
+            if (list.Count > 0)
+            {
+                return list.OrderByDescending(_trr => _trr.count).First().antID;
             }
             else
-            {
-                Debug.WriteLine("New unReaded => " + _ti.epc + "              -----");
-            
-            }
-#endif
+                return string.Empty;
         }
+
+
+        public static int GetMaxReadCountTag(TagInfo _ti)
+        {
+            List<TagReadRecord> list = new List<TagReadRecord>(_ti.antReadCountList);
+            if (list.Count > 0)
+            {
+                return list.Max(trr => trr.count);
+            }
+            else return 0;
+        }
+
+
+        public static int GetCurrentTagReadCount(TagInfo _ti)
+        {
+            List<TagReadRecord> list = new List<TagReadRecord>(_ti.antReadCountList);
+            TagReadRecord trr = list.FirstOrDefault(_trr => _trr.antID == _ti.antennaID);
+            if (trr == null) return 0;
+            else return trr.count;
+        }
+
+
         public static void ResetReadCountDefault(TagInfo _ti)
         {
-            Debug.WriteLine("Epc => " + _ti.epc + " ResetReadCountDefault => " + _ti.ReadCount.ToString());
-            _ti.ReadCount = 1;
+            Debug.WriteLine("Epc => " + _ti.epc + " ResetReadCountDefault => " + GetMaxReadCountTag(_ti).ToString());
+            //_ti.ReadCount = 0;
+            //_ti.bSetTagDefaultState = true;
+            List<TagReadRecord> list = new List<TagReadRecord>(_ti.antReadCountList);
+            _ti.antReadCountList = _ti.antReadCountList.Select((_trr) =>
+            {
+                _trr.count = 0;
+                return _trr;
+            }).ToList<TagReadRecord>();
         }
-        public static void IncreaseReadCount(TagInfo _ti)
+
+
+        public static void UpdateTagInfo(TagInfo _dest, TagInfo _src)
         {
-            //Debug.WriteLine(string.Format("Before IncreaseReadCount => {0}  epc => {1}", _ti.ReadCount.ToString(), _ti.epc));
-            _ti.ReadCount++;
-            //Debug.WriteLine(string.Format("After IncreaseReadCount => {0}  epc => {1}", _ti.ReadCount.ToString(), _ti.epc));
+            if (_dest == null) return;
+            if (_src == null) return;
+            Action<TagInfo, string> act = (_tag, _antID) =>
+            {
+                if (_tag.antReadCountList.Exists(_record => { return _antID == _record.antID; }))
+                {
+                    _tag.antReadCountList.Find(_record => { return _antID == _record.antID; }).count++;
+                }
+                else
+                {
+                    _tag.antReadCountList.Add(new TagReadRecord(_antID, 1));
+                }
+            };
+            act(_dest, _src.antennaID);
+
 #if TagPool_Debug
             Debug.WriteLine("IncreaseReadCount ...");
-            TagInfo temp = GetSpecifiedTag(_ti.epc);
-            Debug.WriteLine(string.Format("ReadCount => {0} EPC => {1}", temp.ReadCount.ToString(), temp.epc));
+            TagInfo temp = GetSpecifiedTag(_dest.epc);
+            Debug.WriteLine(string.Format("ReadCount => {0} EPC => {1}", GetMaxReadCountTag(temp).ToString(), temp.epc));
 #endif
         }
+
+
         static bool GetTagExistsState(TagInfo _ti)
         {
             return _ti.bThisTagExists;

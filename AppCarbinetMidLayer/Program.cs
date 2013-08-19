@@ -27,7 +27,11 @@ namespace AppCarbinetMidLayer
             act(common_port_9601);
             act(common_port_9602);
 
-            StartIntervalCheck(20000);
+            StartIntervalCheck(15000);
+
+            //****************************************
+
+
 
             Console.Read();
         }
@@ -38,7 +42,8 @@ namespace AppCarbinetMidLayer
             {
                 TagPool.ResetExistsState();
                 Console.WriteLine("***************************************");
-                List<TagInfo> tags = TagPool.GetAllExistsTags();
+                List<TagInfo> tags = TagPool.GetAllEventChangedTags();
+                //List<TagInfo> tags = TagPool.GetAllExistsTags();
                 PrintTagInfo(tags);
                 Console.WriteLine("***************************************");
                 Console.WriteLine();

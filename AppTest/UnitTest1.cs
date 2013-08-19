@@ -13,6 +13,76 @@ namespace AppTest
     {
         int common_port_9601 = 9601;
         int common_port_9602 = 9602;
+
+        [TestMethod]
+        public void TagEventTest()
+        {
+            TagPool.ClearTagPool();
+            TagPool.SetMinReadedCount(2);
+
+
+            //新读取标签测试，由不存在到存在，事件变为  TagEvent_TagNew
+            string epc = "300833B2DDD906C001010101";
+            TagInfo ti01 = new TagInfo(epc, "01");
+            TagPool.AddTag(ti01);
+            TagPool.AddTag(ti01);
+            TagPool.ResetExistsState();
+            TagInfo tiTemp = TagPool.GetSpecifiedTag(epc);
+            Assert.IsTrue(tiTemp.bThisTagExists == true);
+            Assert.IsTrue(tiTemp.Event == TagEvent.TagEvent_TagNew);
+            Assert.IsTrue(tiTemp.antennaID == "01");
+
+            //标签消失测试，由存在变为不存在，事件变为 TagEvent_TagDeleted
+            TagPool.ResetExistsState();
+            TagPool.UpdateTagInfo(tiTemp, null);
+            tiTemp = TagPool.GetSpecifiedTag(epc);
+            Assert.IsTrue(tiTemp.bThisTagExists == false);
+            Assert.IsTrue(tiTemp.Event == TagEvent.TagEvent_TagDeleted);
+            Assert.IsTrue(tiTemp.antennaID == "01");
+
+            //标签由消失变化默认状态，不存在状态延续，事件变为 TagEvent_Normal
+            TagPool.ResetExistsState();
+            tiTemp = TagPool.GetSpecifiedTag(epc);
+            Assert.IsTrue(tiTemp.Event == TagEvent.TagEvent_Normal);
+            Assert.IsTrue(tiTemp.antennaID == "01");
+
+            //标签切换天线
+            TagPool.AddTag(ti01);
+            TagPool.AddTag(ti01);
+            TagPool.ResetExistsState();
+            tiTemp = TagPool.GetSpecifiedTag(epc);
+            Assert.IsTrue(tiTemp.bThisTagExists == true);
+            Assert.IsTrue(tiTemp.Event == TagEvent.TagEvent_TagNew);
+            Assert.IsTrue(tiTemp.antennaID == "01");
+            TagInfo ti02 = new TagInfo(epc, "02");
+            TagPool.AddTag(ti02);
+            TagPool.AddTag(ti02);
+            TagPool.AddTag(ti02);
+            TagPool.ResetExistsState();
+            Assert.IsTrue(tiTemp.bThisTagExists == true);
+            Assert.IsTrue(tiTemp.Event == TagEvent.TagEvent_SwitchAnt);
+            Assert.IsTrue(tiTemp.antennaID == "02");
+
+            //存在状态延续，事件由 TagEvent_SwitchAnt 变为 TagEvent_Normal
+            TagPool.AddTag(ti02);
+            TagPool.AddTag(ti02);
+            TagPool.AddTag(ti02);
+            TagPool.ResetExistsState();
+            Assert.IsTrue(tiTemp.bThisTagExists == true);
+            Assert.IsTrue(tiTemp.Event == TagEvent.TagEvent_Normal);
+            Assert.IsTrue(tiTemp.antennaID == "02");
+
+            //由消失变存在，事件由 
+            //TagPool.AddTag(ti01);
+            //TagPool.AddTag(ti01);
+            //TagPool.ResetExistsState();
+            //Assert.IsTrue(tiTemp.bThisTagExists == true);
+            //Assert.IsTrue(tiTemp.Event == TagEvent.TagEvent_SwitchAnt);
+            //Assert.IsTrue(tiTemp.antennaID == "01");
+
+
+        }
+
         //基础的原始数据解析
         [TestMethod]
         public void ParseRawDataTest()
@@ -52,6 +122,7 @@ namespace AppTest
         [TestMethod]
         public void TagPoolTest()
         {
+            TagPool.ClearTagPool();
             TagPool.SetMinReadedCount(2);
 
             List<TagInfo> tagList = TagPool.GetAllExistsTags();
@@ -75,7 +146,7 @@ namespace AppTest
             TagPool.AddTag(ti02);
             TagPool.ResetExistsState();
             tagList = TagPool.GetAllExistsTags();
-            Assert.IsTrue(tagList.Count == 2);
+            Assert.IsTrue(tagList.Count == 1);
             Assert.IsTrue(tagList.Exists((_tag) => { return _tag.epc == "300833B2DDD906C001010102" && _tag.port == common_port_9602; }));
 
         }
@@ -103,17 +174,20 @@ namespace AppTest
         [TestMethod]
         public void TagPoolResetTagStateTest()
         {
+            TagPool.ClearTagPool();
+
             string epc = "300833B2DDD906C001010101";
             TagInfo ti01 = new TagInfo(epc, "01");
             ti01.port = common_port_9601;
             TagPool.AddTag(ti01);
             TagPool.AddTag(ti01);
             TagInfo tiTemp = TagPool.GetSpecifiedTag(epc);
-            Assert.IsTrue(tiTemp.ReadCount == 2);
-            TagPool.IncreaseReadCount(tiTemp);
-            Assert.IsTrue(tiTemp.ReadCount == 3);
+            Assert.IsTrue(TagPool.GetMaxReadCountTag(tiTemp) == 2);
+            TagPool.UpdateTagInfo(tiTemp, ti01);
+            Assert.IsTrue(TagPool.GetMaxReadCountTag(tiTemp) == 3);
             TagPool.ResetReadCountDefault(tiTemp);
-            Assert.IsTrue(tiTemp.ReadCount == 1);
+            TagPool.UpdateTagInfo(tiTemp, null);
+            Assert.IsTrue(TagPool.GetMaxReadCountTag(tiTemp) == 0);
         }
 
         [TestMethod]
@@ -124,13 +198,14 @@ namespace AppTest
                 new TagInfo("111","01"),
                 new TagInfo("222","01")
             };
-            Assert.IsTrue(listSrc[0].ReadCount == 1);
+            TagPool.AddTagRange(listSrc);
+            Assert.IsTrue(TagPool.GetMaxReadCountTag(listSrc[0]) == 1);
 
             List<TagInfo> listDest = new List<TagInfo>(listSrc);
-            Assert.IsTrue(listDest[0].ReadCount == 1);
+            Assert.IsTrue(TagPool.GetMaxReadCountTag(listSrc[0]) == 1);
 
-            listSrc[0].ReadCount++;
-            Assert.IsTrue(listDest[0].ReadCount == 2);
+            //listSrc[0].ReadCount++;
+            Assert.IsTrue(TagPool.GetMaxReadCountTag(listSrc[0]) == 1);
 
             listDest = listSrc.GetRange(0, listSrc.Count - 1);
             Assert.IsTrue(listDest.Count == 1);

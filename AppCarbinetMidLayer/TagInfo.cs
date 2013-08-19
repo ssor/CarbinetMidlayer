@@ -6,41 +6,70 @@ using System.Text.RegularExpressions;
 
 namespace AppCarbinetMidLayer
 {
+    public class TagEvent
+    {
+        public const string TagEvent_Normal = "normal";
+        public const string TagEvent_TagNew = "tagNew";
+        public const string TagEvent_TagDeleted = "tagDeleted";
+        public static string TagEvent_SwitchAnt = "tagSwitchAnt";
+    }
+    public class TagReadRecord
+    {
+        public string antID = string.Empty;
+        public int count = 0;
+        public TagReadRecord(string _id, int _count)
+        {
+            this.antID = _id;
+            this.count = _count;
+        }
+    }
     public class TagInfo
     {
+
+        #region 成员
         public int port;
         public bool bThisTagExists = false;
-        public int ReadCount = 1;//读取到的次数
+        //public int ReadCount = 1;//读取到的次数
         public string antennaID = string.Empty;
         public string tagType = string.Empty;
         public string epc = string.Empty;
-
+        //public Dictionary<string, int> antReadCountList = new Dictionary<string, int>();
+        public List<TagReadRecord> antReadCountList = new List<TagReadRecord>();
         //public string getTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         //public int milliSecond = DateTime.Now.Millisecond;
         //StringBuilder stringBuilder = new StringBuilder();
 
         public long milliSecond = 0;//时间标记
+
+        public string Event = TagEvent.TagEvent_Normal;
+
+        //public bool bSetTagDefaultState = false;//标识是否将标签状态清零
+
+        #endregion
+
+        #region 构建函数
         public TagInfo() { }
         public TagInfo(string _epc, string _ant)
         {
             this.epc = _epc;
             this.antennaID = _ant;
         }
-        public TagInfo(string _epc, string _ant, string _count)
-        {
-            this.epc = _epc;
-            this.antennaID = _ant;
-            try
-            {
-                this.ReadCount = int.Parse(_count);
-            }
-            catch { }
-        }
+        //public TagInfo(string _epc, string _ant, string _count)
+        //{
+        //    this.epc = _epc;
+        //    this.antennaID = _ant;
+        //    try
+        //    {
+        //        this.ReadCount = int.Parse(_count);
+        //    }
+        //    catch { }
+        //} 
+        #endregion
         public string toString()
         {
             string str = string.Empty;
-            str = string.Format("Port => {0}:ant -> {1} | epc -> {2}",
-                                this.port, this.antennaID, this.epc);
+            str = string.Format("Port => {0}:ant -> {1} | epc -> {2}  |  {3}",
+                                this.port, this.antennaID, this.epc, this.Event);
 
             return str;
         }

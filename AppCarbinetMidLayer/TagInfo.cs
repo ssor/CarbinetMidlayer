@@ -31,7 +31,7 @@ namespace AppCarbinetMidLayer
         public bool bThisTagExists = false;
         //public int ReadCount = 1;//读取到的次数
         public string antennaID = string.Empty;
-        public string tagType = string.Empty;
+        //public string tagType = string.Empty;
         public string epc = string.Empty;
         //public Dictionary<string, int> antReadCountList = new Dictionary<string, int>();
         public List<TagReadRecord> antReadCountList = new List<TagReadRecord>();

@@ -10,6 +10,8 @@ namespace AppCarbinetMidLayer
     public class TagPool
     {
         static int MIN_READED_COUNT = 2;
+        static bool bIgnoreMisreading = false;//是否忽略误读数据
+        static List<string> UnmisreadingAnt = new List<string> { "01", "02", "04", "08" };
 
         static Dictionary<int, Func<string, List<TagInfo>>> ParserList = new Dictionary<int, Func<string, List<TagInfo>>>();
         static Dictionary<string, TagInfo> pool = new Dictionary<string, TagInfo>();
@@ -18,7 +20,10 @@ namespace AppCarbinetMidLayer
         {
             pool.Clear();
         }
-
+        public static void SetIgnoreMisreading(bool _b)
+        {
+            bIgnoreMisreading = _b;
+        }
 
         public static void SetMinReadedCount(int _count)
         {
@@ -59,9 +64,6 @@ namespace AppCarbinetMidLayer
                 return (_data) =>
                 {
                     throw new Exception();
-                    //int port = _flag;
-                    //List<TagInfo> listR = new List<TagInfo>();
-                    //return listR;
                 };
             }
         }
@@ -69,8 +71,8 @@ namespace AppCarbinetMidLayer
 
         public static void AddTagRange(List<TagInfo> _tags)
         {
-            //List<TagInfo> tags = new List<TagInfo>(_tags);
-            foreach (TagInfo ti in _tags)
+            List<TagInfo> tags = new List<TagInfo>(_tags);
+            foreach (TagInfo ti in tags)
             {
                 AddTag(ti);
             }
@@ -81,6 +83,13 @@ namespace AppCarbinetMidLayer
             if (!pool.ContainsKey(_ti.epc))
             {
 
+                //if (bIgnoreMisreading == false)//不允许误读数据通过
+                //{
+                //    if (!UnmisreadingAnt.Contains(_ti.antennaID))
+                //    {
+                //        return;
+                //    }
+                //}
                 pool.Add(_ti.epc, _ti);
                 UpdateTagInfo(_ti, _ti);
 
@@ -182,7 +191,14 @@ namespace AppCarbinetMidLayer
         static bool CheckExistsRequirement(TagInfo _ti)
         {
             int maxCount = 0;
-            maxCount = GetMaxReadCountTag(_ti);
+            if (bIgnoreMisreading == false)
+            {
+                maxCount = GetMaxReadCountTag(_ti);
+            }
+            else
+            {
+                maxCount = GetTotalReadCountTag(_ti);
+            }
             Debug.WriteLine(string.Format("read_count => {0}   MIN => {1}  epc => {2}", maxCount.ToString(), MIN_READED_COUNT.ToString(), _ti.epc));
             return maxCount >= MIN_READED_COUNT;
         }
@@ -242,12 +258,21 @@ namespace AppCarbinetMidLayer
         }
 
 
+        public static int GetTotalReadCountTag(TagInfo _ti)
+        {
+            List<TagReadRecord> list = new List<TagReadRecord>(_ti.antReadCountList);
+            if (list.Count > 0)
+            {
+                return list.Sum(trr => trr.count);
+            }
+            else return 0;
+        }
         public static int GetMaxReadCountTag(TagInfo _ti)
         {
             List<TagReadRecord> list = new List<TagReadRecord>(_ti.antReadCountList);
             if (list.Count > 0)
             {
-                return list.Max(trr => trr.count);
+                return list.Where(_trr => UnmisreadingAnt.Contains(_trr.antID)).Max(trr => trr.count);
             }
             else return 0;
         }

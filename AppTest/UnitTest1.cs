@@ -193,6 +193,7 @@ namespace AppTest
         [TestMethod]
         public void ListReferenceTest()
         {
+            TagPool.ClearTagPool();
             List<TagInfo> listSrc = new List<TagInfo> 
             { 
                 new TagInfo("111","01"),
@@ -211,6 +212,33 @@ namespace AppTest
             Assert.IsTrue(listDest.Count == 1);
             listDest = listDest.GetRange(0, listDest.Count - 1);
             Assert.IsTrue(listDest.Count == 0);
+
+        }
+
+        //测试忽略误读状态功能
+        [TestMethod]
+        public void SetIgnoreStateTest()
+        {
+            TagPool.SetMinReadedCount(2);
+            TagPool.ClearTagPool();
+
+            List<TagInfo> tagList = TagPool.GetAllExistsTags();
+            Assert.IsTrue(tagList.Count == 0);
+
+
+            TagInfo ti1 = new TagInfo("111", "01");
+            TagInfo ti2 = new TagInfo("111", "03");
+            TagPool.AddTag(ti1);
+            TagPool.AddTag(ti2);
+            TagPool.ResetExistsState();
+            tagList = TagPool.GetAllExistsTags();
+            Assert.IsTrue(tagList.Count == 0);
+            TagPool.AddTag(ti1);
+            TagPool.AddTag(ti2);
+            TagPool.SetIgnoreMisreading(true);
+            TagPool.ResetExistsState();
+            tagList = TagPool.GetAllExistsTags();
+            Assert.IsTrue(tagList.Count == 1);
 
         }
 

@@ -43,8 +43,6 @@ namespace AppCarbinetMidLayer
 
         public string Event = TagEvent.TagEvent_Normal;
 
-        //public bool bSetTagDefaultState = false;//标识是否将标签状态清零
-
         #endregion
 
         #region 构建函数
@@ -54,16 +52,7 @@ namespace AppCarbinetMidLayer
             this.epc = _epc;
             this.antennaID = _ant;
         }
-        //public TagInfo(string _epc, string _ant, string _count)
-        //{
-        //    this.epc = _epc;
-        //    this.antennaID = _ant;
-        //    try
-        //    {
-        //        this.ReadCount = int.Parse(_count);
-        //    }
-        //    catch { }
-        //} 
+
         #endregion
         public string toString()
         {

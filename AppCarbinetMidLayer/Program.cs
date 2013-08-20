@@ -31,9 +31,29 @@ namespace AppCarbinetMidLayer
 
             //****************************************
 
+            string line;
 
-
-            Console.Read();
+        READ_LINE: line = Console.ReadLine();
+            if (line == "ignoreMisreading")
+            {
+                Console.WriteLine("Input State:  y   or   n ?");
+                string state = Console.ReadLine();
+                if (state.ToLower() == "y")
+                {
+                    TagPool.SetIgnoreMisreading(true);
+                    Console.WriteLine("Current Ignore Misreading State:  true");
+                }
+                if (state.ToLower() == "n")
+                {
+                    TagPool.SetIgnoreMisreading(false);
+                    Console.WriteLine("Current Ignore Misreading State:  false");
+                }
+                goto READ_LINE;
+            }
+            else
+            {
+                goto READ_LINE;
+            }
         }
         static void StartIntervalCheck(int interval, Func<bool> predictor = null)
         {

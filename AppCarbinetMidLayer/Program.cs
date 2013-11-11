@@ -12,25 +12,32 @@ namespace AppCarbinetMidLayer
     class Program
     {
         //static List<IWebSocketConnection> MonitorClientList = new List<IWebSocketConnection>();
-        static List<IWebSocketConnection> ClientList = new List<IWebSocketConnection>();
+        static List<SubscriberClient> ClientList = new List<SubscriberClient>();
         static void Main(string[] args)
         {
+
             int common_port_9601 = 9601;
             int common_port_9602 = 9602;
 
-            Action<int> act = (port) =>
+
+            ReaderManager.addReader(common_port_9601, "9601");
+            ReaderManager.addReader(common_port_9602, "9602");
+
+
+
+            Action<int> StartUDPListener = (port) =>
             {
 
                 TagPool.AddParser(port, TagInfo.GetParseRawTagDataFunc(port, TagPool.AddTagRange), true);
                 UDPServer.StartUDPServer(port,
                     (_port, _data) =>
                     {
-                        TagPool.GetParser(_port)(_data);
+                        TagPool.GetRawDataParser(_port)(_data);
                     });
             };
 
-            act(common_port_9601);
-            act(common_port_9602);
+            StartUDPListener(common_port_9601);
+            StartUDPListener(common_port_9602);
 
             StartWebSocketServer(9701);
 
@@ -94,22 +101,35 @@ namespace AppCarbinetMidLayer
                 socket.OnMessage = message =>
                 {
                     Debug.WriteLine("OnMessage => " + message);
+                    try
+                    {
+                        MessageInfo mi = JsonConvert.DeserializeObject(message) as MessageInfo;
+                        if (mi != null)
+                        {
+                            if (mi.command == MessageInfo.GET_ALL_TAGS)
+                            {
+                                List<TagInfo> tags = TagPool.GetAllExistsTags();
+                                string json = JsonConvert.SerializeObject(tags);
+                                socket.Send(json);
+                            }
+                            else if (mi.command == MessageInfo.SUBSCRIBE_READER)
+                            {
+                                Debug.WriteLine("subscribe => " + mi.content);
 
-                    //MessageInfo mi = JsonConvert.DeserializeObject(message) as MessageInfo;
-                    //if (mi != null)
-                    //{
-                    //    if (mi.command == "allTags")
-                    //    {
-                    //        List<TagInfo> tags = TagPool.GetAllExistsTags();
-                    //        string json = JsonConvert.SerializeObject(tags);
-                    //        socket.Send(json);
-                    //    }
+                                string[] reader = mi.content.Split(',');
+                                if (reader.Length > 0)
+                                {
+                                    updateClientSubscribedReaderList(socket, ClientList, reader.ToList<string>());
+                                }
+                            }
+                        }
 
-                    //}
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e.Message);
+                    }
 
-                    List<TagInfo> tags = TagPool.GetAllExistsTags();
-                    string json = JsonConvert.SerializeObject(tags);
-                    socket.Send(json);
 
                     /*
                      [{"port":9601,"bThisTagExists":true,"antennaID":"04","tagType":"","epc":"300833B2DDD906C001010101","antReadCountList":[{"antID":"04","count":0}],"milliSecond":0,"Event":"tagNew"},{"port":9601,"bThisTagExists":true,"antennaID":"02","tagType":"","epc":"300833B2DDD906C001010102","antReadCountList":[{"antID":"02","count":0}],"milliSecond":0,"Event":"tagNew"}]
@@ -125,16 +145,26 @@ namespace AppCarbinetMidLayer
             });
         }
 
-
-        static void removeClient(IWebSocketConnection client, List<IWebSocketConnection> list)
+        static void updateClientSubscribedReaderList(IWebSocketConnection client, List<SubscriberClient> list, List<string> _readerList)
         {
-            IWebSocketConnection c = list.Find((_client) =>
+            SubscriberClient c = list.Find((_client) =>
             {
-                return _client.ConnectionInfo.Id == client.ConnectionInfo.Id;
+                return _client.client.ConnectionInfo.Id == client.ConnectionInfo.Id;
             });
             if (c != null)
             {
-                list.Remove(client);
+                c.subscribedReaderList.AddRange(_readerList);
+            }
+        }
+        static void removeClient(IWebSocketConnection client, List<SubscriberClient> list)
+        {
+            SubscriberClient c = list.Find((_client) =>
+            {
+                return _client.client.ConnectionInfo.Id == client.ConnectionInfo.Id;
+            });
+            if (c != null)
+            {
+                list.Remove(c);
                 //Debug.WriteLine("Client --  => " + list.Count.ToString());
             }
 
@@ -142,15 +172,15 @@ namespace AppCarbinetMidLayer
         }
 
 
-        static void addClient(IWebSocketConnection client, List<IWebSocketConnection> list)
+        static void addClient(IWebSocketConnection client, List<SubscriberClient> list)
         {
-            IWebSocketConnection c = list.Find((_client) =>
+            SubscriberClient c = list.Find((_client) =>
             {
-                return _client.ConnectionInfo.Origin == client.ConnectionInfo.Origin;
+                return _client.client.ConnectionInfo.Origin == client.ConnectionInfo.Origin;
             });
             if (c == null)
             {
-                list.Add(client);
+                list.Add(new SubscriberClient(client));
                 //Debug.WriteLine("Client ++  => " + list.Count.ToString());
             }
         }
@@ -180,10 +210,10 @@ namespace AppCarbinetMidLayer
         {
             List<TagInfo> tags = TagPool.GetAllEventChangedTags();
             string json = JsonConvert.SerializeObject(tags);
-            List<IWebSocketConnection> list = new List<IWebSocketConnection>(ClientList);
-            foreach (IWebSocketConnection socket in list)
+            List<SubscriberClient> list = new List<SubscriberClient>(ClientList);
+            foreach (SubscriberClient socket in list)
             {
-                socket.Send(json);
+                socket.client.Send(json);
             }
         }
         static void PrintTagInfo(List<TagInfo> _tagList)

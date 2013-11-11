@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using Fleck;
 
 namespace AppCarbinetMidLayer
 {
@@ -96,6 +97,18 @@ namespace AppCarbinetMidLayer
                 if (_callback != null) _callback(listR);
                 return listR;
             };
+        }
+    }
+
+    public class SubscriberClient
+    {
+        public IWebSocketConnection client;
+        public List<string> subscribedReaderList;
+
+        public SubscriberClient(IWebSocketConnection _client)
+        {
+            this.client = _client;
+            this.subscribedReaderList = new List<string>();
         }
     }
 }

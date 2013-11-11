@@ -92,8 +92,8 @@ namespace AppTest
             string data1 = "Disc:2000/02/28 20:01:51, Last:2000/02/28 20:07:42, Count:00019, Ant:02, Type:04, Tag:300833B2DDD906C001010101   ";
             string data2 = "Disc:2000/02/28 20:01:51, Last:2000/02/28 20:07:42, Count:00019, Ant:02, Type:04, Tag:300833B2DDD906C001010102   ";
 
-            List<TagInfo> tags = TagPool.GetParser(common_port_9601)(data1);
-            List<TagInfo> tags2 = TagPool.GetParser(common_port_9602)(data2);
+            List<TagInfo> tags = TagPool.GetRawDataParser(common_port_9601)(data1);
+            List<TagInfo> tags2 = TagPool.GetRawDataParser(common_port_9602)(data2);
             Assert.IsTrue(tags.Count == 1);
             Assert.IsTrue(tags[0].epc == "300833B2DDD906C001010101");
             Assert.IsTrue(tags[0].port == common_port_9601);
@@ -111,7 +111,7 @@ namespace AppTest
                             "Disc:2000/02/28 20:01:51, Last:2000/02/28 20:07:42, Count:00019, Ant:02, Tag:300833B2DDD906C001010103  ";
 
             TagPool.AddParser(common_port_9601, TagInfo.GetParseRawTagDataFunc(common_port_9601, null));
-            List<TagInfo> tags = TagPool.GetParser(common_port_9601)(data);
+            List<TagInfo> tags = TagPool.GetRawDataParser(common_port_9601)(data);
             Assert.IsTrue(tags.Count == 3);
             Assert.IsTrue(tags.Exists((_tag) => { return _tag.epc == "300833B2DDD906C001010101"; }));
             Assert.IsTrue(tags.Exists((_tag) => { return _tag.epc == "300833B2DDD906C001010102"; }));
@@ -162,7 +162,7 @@ namespace AppTest
                      "Disc:2000/02/28 20:01:51, Last:2000/02/28 20:07:42, Count:00019, Ant:02, Tag:300833B2DDD906C001010103  ";
 
             TagPool.AddParser(common_port_9601, TagInfo.GetParseRawTagDataFunc(common_port_9601, TagPool.AddTagRange), true);
-            List<TagInfo> tags = TagPool.GetParser(common_port_9601)(data);
+            List<TagInfo> tags = TagPool.GetRawDataParser(common_port_9601)(data);
             //TagPool.IntervalResetState();
             tags = TagPool.GetAllExistsTags(true);
             Assert.IsTrue(tags.Count == 3);

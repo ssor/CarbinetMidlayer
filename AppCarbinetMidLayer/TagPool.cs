@@ -38,7 +38,7 @@ namespace AppCarbinetMidLayer
         /// </summary>
         /// <param name="_flag">闭包的存储标识，一般为端口号</param>
         /// <param name="_parser">闭包函数</param>
-        /// <param name="_bReplace">是否用新闭包强制替换就闭包</param>
+        /// <param name="_bReplace">是否用新闭包强制替换旧闭包</param>
         public static void AddParser(int _flag, Func<string, List<TagInfo>> _parser, bool _bReplace = false)
         {
             if (!ParserList.ContainsKey(_flag))
@@ -52,7 +52,7 @@ namespace AppCarbinetMidLayer
         }
 
 
-        public static Func<string, List<TagInfo>> GetParser(int _flag)
+        public static Func<string, List<TagInfo>> GetRawDataParser(int _flag)
         {
             if (ParserList.ContainsKey(_flag))
             {

@@ -157,6 +157,15 @@ namespace AppCarbinetMidLayer
             .Select((_kvp) => { return _kvp.Value; }).ToList<TagInfo>();
         }
 
+        public static List<TagInfo> GetExistsTags(List<int> _filter)
+        {
+            return pool.Where((_kvp) =>
+            {
+                return GetTagExistsState(_kvp.Value) && _filter.Contains(_kvp.Value.port);
+            })
+            .Select((_kvp) => { return _kvp.Value; }).ToList<TagInfo>();
+        }
+
         public static List<TagInfo> GetAllEventChangedTags()
         {
             return pool.Where((_kvp) =>
@@ -169,7 +178,7 @@ namespace AppCarbinetMidLayer
         public static List<TagInfo> GetSpecifiedExistsTags(int _port)
         {
             return pool.Where((_kvp) => { return GetTagExistsState(_kvp.Value) && _kvp.Value.port == _port; })
-            .Select((_kvp) => { return _kvp.Value; }).ToList<TagInfo>();
+                       .Select((_kvp) => { return _kvp.Value; }).ToList<TagInfo>();
         }
 
 
@@ -270,11 +279,19 @@ namespace AppCarbinetMidLayer
         public static int GetMaxReadCountTag(TagInfo _ti)
         {
             List<TagReadRecord> list = new List<TagReadRecord>(_ti.antReadCountList);
-            if (list.Count > 0)
+            if (list.Count > 1)
             {
                 return list.Where(_trr => UnmisreadingAnt.Contains(_trr.antID)).Max(trr => trr.count);
             }
-            else return 0;
+            else if (list.Count == 1)
+            {
+                return list[0].count;
+            }
+            else if (list.Count <= 0)
+            {
+                return 0;
+            }
+            return 0;
         }
 
 

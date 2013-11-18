@@ -50,5 +50,10 @@ namespace AppCarbinetMidLayer
                 return _reader.name == _name;
             });
         }
+        public static List<int> getPortsByName(List<string> _filter)
+        {
+            return readerList.Where((_ri) => { return _filter.Contains(_ri.name); })
+                             .Select((_ri) => { return _ri.port; }).ToList<int>();
+        }
     }
 }

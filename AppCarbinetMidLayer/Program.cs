@@ -16,7 +16,8 @@ namespace AppCarbinetMidLayer
         static void Main(string[] args)
         {
 
-            int common_port_9601 = 9601;
+            int common_port_9601 = 5000;
+            //int common_port_9601 = 9601;
             int common_port_9602 = 9602;
 
 
@@ -41,7 +42,7 @@ namespace AppCarbinetMidLayer
 
             StartWebSocketServer(9701);
 
-            StartIntervalCheck(15000);
+            StartIntervalCheck(10000);
 
 
 
@@ -103,24 +104,35 @@ namespace AppCarbinetMidLayer
                     Debug.WriteLine("OnMessage => " + message);
                     try
                     {
-                        MessageInfo mi = JsonConvert.DeserializeObject(message) as MessageInfo;
+                        MessageInfo mi = JsonConvert.DeserializeObject<MessageInfo>(message) as MessageInfo;
                         if (mi != null)
                         {
-                            if (mi.command == MessageInfo.GET_ALL_TAGS)
+                            List<TagInfo> tags;
+                            string json;
+                            switch (mi.command)
                             {
-                                List<TagInfo> tags = TagPool.GetAllExistsTags();
-                                string json = JsonConvert.SerializeObject(tags);
-                                socket.Send(json);
-                            }
-                            else if (mi.command == MessageInfo.SUBSCRIBE_READER)
-                            {
-                                Debug.WriteLine("subscribe => " + mi.content);
+                                case MessageInfo.GET_ALL_TAGS:
+                                    tags = TagPool.GetAllExistsTags();
+                                    json = JsonConvert.SerializeObject(tags);
+                                    socket.Send(json);
+                                    break;
 
-                                string[] reader = mi.content.Split(',');
-                                if (reader.Length > 0)
-                                {
-                                    updateClientSubscribedReaderList(socket, ClientList, reader.ToList<string>());
-                                }
+                                case MessageInfo.GET_SUBSCRIBE_READER_TAGS:
+                                    SubscriberClient sc = getClientInfo(socket, ClientList);
+                                    tags = TagPool.GetExistsTags(ReaderManager.getPortsByName(sc.subscribedReaderList));
+                                    json = JsonConvert.SerializeObject(tags);
+                                    socket.Send(json);
+                                    break;
+
+                                case MessageInfo.SUBSCRIBE_READER:
+                                    Debug.WriteLine("subscribe => " + mi.content);
+
+                                    string[] reader = mi.content.Split(',');
+                                    if (reader.Length > 0)
+                                    {
+                                        updateClientSubscribedReaderList(socket, ClientList, reader.ToList<string>());
+                                    }
+                                    break;
                             }
                         }
 
@@ -142,6 +154,14 @@ namespace AppCarbinetMidLayer
                     removeClient(socket, ClientList);
 
                 };
+            });
+        }
+
+        static SubscriberClient getClientInfo(IWebSocketConnection client, List<SubscriberClient> list)
+        {
+            return list.Find((_client) =>
+            {
+                return _client.client.ConnectionInfo.Id == client.ConnectionInfo.Id;
             });
         }
 
@@ -206,16 +226,21 @@ namespace AppCarbinetMidLayer
 
             timer.Enabled = true;
         }
+
         static void ReportEventChangedTag()
         {
             List<TagInfo> tags = TagPool.GetAllEventChangedTags();
-            string json = JsonConvert.SerializeObject(tags);
             List<SubscriberClient> list = new List<SubscriberClient>(ClientList);
             foreach (SubscriberClient socket in list)
             {
+                List<int> ports = ReaderManager.getPortsByName(socket.subscribedReaderList);
+                List<TagInfo> filtedTags = tags.Where((_ti) => { return ports.Contains(_ti.port); }).ToList<TagInfo>();
+                string json = JsonConvert.SerializeObject(filtedTags);
                 socket.client.Send(json);
             }
+
         }
+
         static void PrintTagInfo(List<TagInfo> _tagList)
         {
             foreach (TagInfo ti in _tagList)

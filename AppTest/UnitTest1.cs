@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using AppCarbinetMidLayer;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Newtonsoft.Json;
 
 namespace AppTest
 {
@@ -136,6 +137,7 @@ namespace AppTest
             tagList = TagPool.GetAllExistsTags();
             Assert.IsTrue(tagList.Count == 0);
             tagList = TagPool.GetAllExistsTags(true);
+            string str = JsonConvert.SerializeObject(tagList);
             Assert.IsTrue(tagList.Count == 1);
             //Assert.IsTrue(tagList[0].epc == "300833B2DDD906C001010101");
 
